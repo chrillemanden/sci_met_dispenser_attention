@@ -5,6 +5,7 @@ import numpy as np
 import datetime
 from enum import Enum
 from functools import reduce
+import os
 
 
 class Week(Enum):
@@ -29,6 +30,41 @@ def generate_time_intervals(starttime, endtime, step_per_hour):
     return times
 
 
+def create_discretized_activations(dates, time_slots):
+    discretized_activations = {}
+
+    week_index = 0
+    day_index = 0
+    time_index = 0
+
+    timestamp_before = pd.Timestamp(f'{dates[week_index][day_index]} {time_slots[time_index]}')
+    timestamp_after = pd.Timestamp(f'{dates[week_index][day_index]} {time_slots[time_index + 1]}')
+
+    for el in [df.iloc[x] for x in range(0, df.size)]:
+        print("Checking:", el['month_day_hour_minute_second'])
+        if timestamp_before <= el['month_day_hour_minute_second'] < timestamp_after:
+            date_key = f'{el["month_day_hour_minute_second"].date()}'
+            time_key = f'{time_slots[time_index][:2]} {time_slots[time_index + 1][:2]}'
+            if discretized_activations.get(date_key) is None:
+                discretized_activations[date_key] = {}
+
+            discretized_activations[date_key][time_key] = discretized_activations[date_key].get(time_key, 0) + 1
+
+        elif timestamp_after <= el['month_day_hour_minute_second']:
+            time_index += 1
+            if time_index == len(time_slots) - 1:
+                time_index = 0
+                day_index += 1
+            if day_index == len(dates[week_index]):
+                day_index = 0
+                week_index += 1
+            if week_index == len(dates.keys()):
+                break
+            timestamp_before = pd.Timestamp(f'{dates[week_index][day_index]} {time_slots[time_index]}')
+            timestamp_after = pd.Timestamp(f'{dates[week_index][day_index]} {time_slots[time_index + 1]}')
+    return discretized_activations
+
+
 def dict_to_ndarray(dict, days, times):
     arr = np.zeros((len(days), len(times)))
 
@@ -49,55 +85,15 @@ include_dates = {
     Week.U47.value: ['2020-11-16', '2020-11-17', '2020-11-18', '2020-11-19', '2020-11-20'],
 }
 time_intervals = generate_time_intervals(7, 16, 1)
-discretized_activations = {}
 
-df = pd.read_csv('activations_all_corrected.csv',
+df = pd.read_csv(os.path.join(os.pardir, 'activations', 'activations_all_corrected.csv'),
                  names=['month', 'day', 'hour', 'minute', 'second'],
                  parse_dates=[[0, 1, 2, 3, 4]],
                  date_parser=parse,
                  )
+discretized_activations = create_discretized_activations(include_dates, time_intervals)
 
-week_index = 0
-day_index = 0
-time_index = 0
-
-timestamp_before = pd.Timestamp(f'{include_dates[week_index][day_index]} {time_intervals[time_index]}')
-timestamp_after = pd.Timestamp(f'{include_dates[week_index][day_index]} {time_intervals[time_index + 1]}')
-
-for el in [df.iloc[x] for x in range(0, df.size)]:
-    print("Checking:", el['month_day_hour_minute_second'])
-    #print(week_index, day_index, time_index)
-    if timestamp_before <= el['month_day_hour_minute_second'] < timestamp_after:
-        date_key = f'{el["month_day_hour_minute_second"].date()}'
-        time_key = f'{time_intervals[time_index][:2]} {time_intervals[time_index + 1][:2]}'
-        if discretized_activations.get(date_key) is None:
-            discretized_activations[date_key] = {}
-
-        discretized_activations[date_key][time_key] = discretized_activations[date_key].get(time_key, 0) + 1
-
-    elif timestamp_after <= el['month_day_hour_minute_second']:
-        time_index += 1
-        if time_index == len(time_intervals) - 1:
-            time_index = 0
-            day_index += 1
-        if day_index == len(include_dates[week_index]):
-            day_index = 0
-            week_index += 1
-        if week_index == len(include_dates.keys()):
-            break
-        timestamp_before = pd.Timestamp(f'{include_dates[week_index][day_index]} {time_intervals[time_index]}')
-        timestamp_after = pd.Timestamp(f'{include_dates[week_index][day_index]} {time_intervals[time_index + 1]}')
-
-print(discretized_activations)
-
-'''
-days = reduce(lambda x, y: x+y, include_dates.values())
-activations_array = dict_to_ndarray(discretized_activations, days, time_intervals)
-print(activations_array)
-sb.heatmap(activations_array)
-plt.show()
-'''
-
+# Heatmap
 ndf = pd.DataFrame(discretized_activations)
 ax = sb.heatmap(ndf.transpose(), cmap="Blues", linewidths=0.2, cbar_kws={"shrink": .8})
 ws_index = 0
