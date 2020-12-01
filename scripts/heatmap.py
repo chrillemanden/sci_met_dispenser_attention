@@ -1,5 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib import rc
 import seaborn as sb
 import numpy as np
 import datetime
@@ -104,6 +105,8 @@ for key in include_dates.keys():
 ax.set(xlabel='Time Interval', ylabel='Dates')
 ax.xaxis.set_label_position('top')
 ax.xaxis.tick_top()
+plt.xlabel('Time Interval', fontweight='bold')
+plt.ylabel('Dates', fontweight='bold')
 plt.show()
 
 
