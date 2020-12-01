@@ -4,7 +4,7 @@ import csv
 year = 2020
 activations = {}
 
-with open ('activations_all.csv') as csv_file:
+with open (os.path.join(os.pardir, 'activations', 'activations_all_corrected.csv')) as csv_file:
     csv_reader = csv.reader(csv_file, delimiter=',')
     lines = 0
     for row in csv_reader:
